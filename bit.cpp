@@ -1,14 +1,10 @@
 class Bit {
 private:
     vector<int> bit;
-    int n;
+    const int n;
 
 public:
-    Bit(int _n) {
-        n = _n;
-        bit.clear();
-        bit.resize(n + 1, 0);
-    }
+    Bit(int _n) : n(_n), bit(_n + 1, 0) {}
 
     // get sum in [1, i]
     // sum{[i, j]} = sum{[1, j]} - sum{[1, i-1]}
