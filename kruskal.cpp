@@ -44,7 +44,7 @@ private:
     vector<edge<T>> edges;
     UnionFind uf;
 public:
-    Kruskal(int _n) : n(_n), uf(UnionFind(n)) {}
+    Kruskal(int _n) : n(_n), uf(_n) {}
     void addEdge(int _from, int _to, T _cost) {
         edges.emplace_back(_from, _to, _cost);
     }
