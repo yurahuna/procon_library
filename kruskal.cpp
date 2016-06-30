@@ -11,13 +11,14 @@ public:
     bool same(int x, int y) {
         return root(x) == root(y);
     }
-    void unite(int x, int y) {
+    bool unite(int x, int y) {
         x = root(x);
         y = root(y);
-        if (x == y) return;
+        if (x == y) return false;
         if (uni[x] > uni[y]) swap(x, y);
         uni[x] += uni[y];
         uni[y] = x;
+        return true;
     }
     void print() {
         for (auto x : uni) cout << x << " ";
@@ -51,8 +52,7 @@ public:
         sort(all(edges));
         T res = 0;
         for (auto &e : edges) {
-            if (!uf.same(e.from, e.to)) {
-                uf.unite(e.from, e.to);
+            if (uf.unite(e.from, e.to)) {
                 res += e.cost;
             }
         }
