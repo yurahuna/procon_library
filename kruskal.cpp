@@ -1,13 +1,9 @@
 class UnionFind {
 private:
-    int n;
+    const int n;
     vector<int> uni;
 public:
-    UnionFind(int _n) {
-        n = _n;
-        uni.clear();
-        uni.resize(n, -1);
-    }
+    UnionFind(int _n) : n(_n), uni(_n, -1) {}
     int root(int x) {
         if (uni[x] < 0) return x;
         return uni[x] = root(uni[x]);
