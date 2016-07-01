@@ -1,13 +1,9 @@
 class UnionFind {
 private:
-    int n;
+    const int n;
     vector<int> uni;
 public:
-    UnionFind(int _n) {
-        n = _n;
-        uni.clear();
-        uni.resize(n, -1);
-    }
+    UnionFind(int _n) : n(_n), uni(_n, -1) {}
     int root(int x) {
         if (uni[x] < 0) return x;
         return uni[x] = root(uni[x]);
@@ -15,13 +11,14 @@ public:
     bool same(int x, int y) {
         return root(x) == root(y);
     }
-    void unite(int x, int y) {
+    bool unite(int x, int y) {
         x = root(x);
         y = root(y);
-        if (x == y) return;
+        if (x == y) return false;
         if (uni[x] > uni[y]) swap(x, y);
         uni[x] += uni[y];
         uni[y] = x;
+        return true;
     }
     void print() {
         for (auto x : uni) cout << x << " ";
@@ -47,7 +44,7 @@ private:
     vector<edge<T>> edges;
     UnionFind uf;
 public:
-    Kruskal(int _n) : n(_n), uf(UnionFind(n)) {}
+    Kruskal(int _n) : n(_n), uf(_n) {}
     void addEdge(int _from, int _to, T _cost) {
         edges.emplace_back(_from, _to, _cost);
     }
@@ -55,8 +52,7 @@ public:
         sort(all(edges));
         T res = 0;
         for (auto &e : edges) {
-            if (!uf.same(e.from, e.to)) {
-                uf.unite(e.from, e.to);
+            if (uf.unite(e.from, e.to)) {
                 res += e.cost;
             }
         }
