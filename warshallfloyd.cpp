@@ -1,10 +1,9 @@
 class WarshallFloyd {
 private:
-    int n;
+    const int n;
     VV d;
 public:
-    WarshallFloyd(int _n) : n(_n) {
-        d.resize(n, V(n));
+    WarshallFloyd(int _n) : n(_n), d(_n, V(_n)) {
         rep(i, n) rep(j, n) {
             d[i][j] = (i == j ? 0 : inf);
         }
