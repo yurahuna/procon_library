@@ -15,12 +15,10 @@ struct edge {
 template <typename T>
 class Prim {
 private:
-    int n;
+    const int n;
     vector<vector<edge<T>>> G;
 public:
-    Prim(int _n) : n(_n) {
-        G.resize(n);
-    }
+    Prim(int _n) : n(_n), G(_n) {}
     // undirected
     void addEdge(int u, int v, T c) {
         G[u].emplace_back(u, v, c);
