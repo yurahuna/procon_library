@@ -40,6 +40,22 @@ struct L {
     L(double _ax, double _ay, double _bx, double _by) : L(P(_ax, _ay), P(_bx, _by)) {}
 };
 
+struct C {
+    P p;
+    double r;
+    C(){}
+    C(P _p, double _r) : p(_p), r(_r) {}
+    C(double _x, double _y, double _r) : p(_x, _y), r(_r) {}
+    void print() {
+        cerr << p.real() << " " << p.imag() << " " << r << endl;
+    }
+};
+
+bool cmp_x(const P& p, const P& q) {
+    if (p.real() != q.real()) return p.real() < q.real();
+    return p.imag() < q.imag();
+}
+
 double cross(P a, P b) {
     return imag(conj(a) * b);
 }
@@ -120,6 +136,11 @@ double distanceSS(L l1, L l2) {
     return d;
 }
 
+double distanceCC(C c1, C c2) {
+    double d = abs(c1.p - c2.p);
+    return max(0., d - (c1.r + c2.r));
+}
+
 P projection(P x, P d) {
     return dot(x, d) * d / abs(d) / abs(d);
 }
@@ -133,9 +154,60 @@ double deg2rad(double deg) {
     return deg * 2. * PI / 360;
 }
 
-P rotP(P p, double theta) {
+// rot p around q by theta (counter-clockwise)
+P rotP(P p, P q, double theta) {
+    p -= q;
     double x = p.real(), y = p.imag();
-    return P(x * cos(theta) - y * sin(theta), x * sin(theta) + y * cos(theta));
+    p = P(x * cos(theta) - y * sin(theta), x * sin(theta) + y * cos(theta));
+    p += q;
+    return p;
+}
+
+G convex_hull(vector<P> ps) {
+    int n = ps.size();
+    sort(all(ps), cmp_x);
+    G qs(n * 2);
+    int k = 0;
+    rep(i, n) {
+        // 一直線上の3つ以上の頂点を残したい場合は「<=」を「<」に
+        while (k > 1 && cross(qs[k - 1] - qs[k - 2], ps[i] - qs[k - 1]) <= 0) k--;
+        qs[k++] = ps[i];
+    }
+    for (int i = n - 2, t = k; i >= 0; i--) {
+        // 一直線上の3つ以上の頂点を残したい場合は「<=」を「<」に
+        while (k > t && cross(qs[k - 1] - qs[k - 2], ps[i] - qs[k - 1]) <= 0) k--;
+        qs[k++] = ps[i];
+    }
+    qs.resize(k - 1);
+    return qs;
+}
+
+// ベクトルp, qのなす角(q->pの方向が正)
+double thetaPP(P p, P q) {
+    int sgn = cross(q, p) > 0 ? +1 : -1;
+    return sgn * acos(dot(p, q) / abs(p) / abs(q));
+}
+
+// lがx軸となす角
+double thetaL(L l) {
+    return thetaPP(l.v, P(1, 0));
+}
+
+G rotG(G g, P p, double theta) {
+    rep(i, g.size()) {
+        g[i] = rotP(g[i], p, theta);
+    }
+    return g;
+}
+
+P centroidG(G g) {
+    int n = g.size();
+    double x = 0, y = 0;
+    rep(i, n) {
+        x += g[i].real();
+        y += g[i].imag();
+    }
+    return P(x / n, y / n);
 }
 
 double areaG(G g) {
@@ -189,6 +261,46 @@ G readG() {
     G g(n);
     rep(i, n) g[i] = readP();
     return g;
+}
+
+C readC() {
+    double x, y, r;
+    cin >> x >> y >> r;
+    return C(x, y, r);
+}
+
+bool EQ(double a, double b) {
+    return abs(a - b) < EPS;
+}
+
+bool EqP(P p, P q) {
+    return EQ(p.real(), q.real()) && EQ(p.imag(), q.imag());
+}
+
+bool EqG(G g, G h) {
+    if (g.size() != h.size()) return false;
+    rep(k, g.size()) {
+        bool flag = true;
+        rep(i, g.size()) {
+            if (!EqP(g[(i + k) % g.size()], h[i])) {
+                flag = false;
+                break;
+            }
+        }
+        if (flag) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+
+void printG(G g) {
+    rep(i, g.size()) {
+        cout << g[i].real() << " " << g[i].imag() << endl;
+    }
+    cout << endl;
 }
 
 
