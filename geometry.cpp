@@ -24,21 +24,30 @@ typedef vector<Pii> vp;
 const int inf = 1e9;
 const int mod = 1e9 + 7;
 
-typedef complex<double> P;
-typedef vector<P> G;
+using P = complex<double>;
+using G = vector<P>;
 #define here(g, i) g[i]
 #define next(g, i) g[(i + 1) % g.size()]
 #define prev(g, i) g[(i - 1 + g.size()) % g.size()]
-const double EPS = 1e-10;
+const double EPS = 1e-8;
 const double INF = 1e12;
 const double PI = acos(-1);
+inline int sgn(double a, double b = 0) { return a < b - EPS ? -1 : a > b + EPS ? 1 : 0; }
 
 struct L {
-    P a, b, v;
+    P a, b, v, h;
     L(){}
-    L(P _a, P _b) : a(_a), b(_b), v(b - a) {}
+    L(P _a, P _b) : a(_a), b(_b), v(b - a), h(v / abs(v) * P(0, 1)) {}
     L(double _ax, double _ay, double _bx, double _by) : L(P(_ax, _ay), P(_bx, _by)) {}
+    void trans(double d) {
+        a += d * h;
+        b += d * h;
+    }
+    void print() {
+        cerr << "{(" << a.real() << ", " << a.imag() << "), (" << b.real() << ", " << b.imag() << ")}" << endl;
+    }
 };
+using S = L;
 
 struct C {
     P p;
@@ -51,11 +60,6 @@ struct C {
     }
 };
 
-bool cmp_x(const P& p, const P& q) {
-    if (p.real() != q.real()) return p.real() < q.real();
-    return p.imag() < q.imag();
-}
-
 double cross(P a, P b) {
     return imag(conj(a) * b);
 }
@@ -65,11 +69,12 @@ double dot(P a, P b) {
 }
 
 int ccw(P p0, P p1, P p2) {
-    if (cross(p1 - p0, p2 - p0) > 0) return +1; // counter-clockwise
-    if (cross(p1 - p0, p2 - p0) < 0) return -1; // clockwise
-    if (dot(p1 - p0, p2 - p0) < 0) return +2;   // online_back
-    if (dot(p0 - p1, p2 - p1) < 0) return -2;   // online_front
-    return 0;                                   // on_segment
+    p1 -= p0; p2 -= p0;
+    if (sgn(cross(p1, p2)) == 1) return +1;         // counter-clockwise
+    if (sgn(cross(p1, p2)) == -1) return -1;        // clockwise
+    if (sgn(dot(p1, p2)) == -1) return +2;          // p2 -- p0 -- p1
+    if (sgn(norm(p1), norm(p2)) == -1) return -2;   // p0 -- p1 -- p2
+    return 0;                                       // p0 -- p2 -- p1
 }
 
 // !! 端点を含まないときは "<" !!
@@ -78,13 +83,40 @@ bool intersectSS(L l1, L l2) {
             ccw(l2.a, l2.b, l1.a) * ccw(l2.a, l2.b, l1.b) <= 0);
 }
 
-
 P crosspointSS(L l1, L l2) {
     assert(intersectSS(l1, l2));
     double d1 = abs(cross(l2.v, l1.a - l2.a));
     double d2 = abs(cross(l2.v, l1.b - l2.a));
     double t = d1 / (d1 + d2);
     return l1.a + t * l1.v;
+}
+
+// Assume that there are two crosspoints
+vector<P> crosspointLC(L l, C c) {
+    double d = distanceLP(l, c.p);
+    double len = sqrt(c.r * c.r - d * d);
+    P h = l.h * d;
+    if (!intersectPL(c.p + h, l)) h *= -1;
+    assert(intersectPL(c.p + h, l));
+
+    vector<P> ret;
+    if (intersectPL(c.p + h + l.v / abs(l.v) * len, l)) ret.emplace_back(c.p + h + l.v / abs(l.v) * len);
+    if (intersectPL(c.p + h - l.v / abs(l.v) * len, l)) ret.emplace_back(c.p + h - l.v / abs(l.v) * len);
+    return ret;
+}
+
+P crosspointLL(L l1, L l2) {
+    return l1.a + l1.v * cross(l2.v, l2.a - l1.a) / cross(l2.v, l1.v);
+}
+
+L intersectSegmentCC(C c1, C c2) {
+    P v = c2.p - c1.p;
+    double ac = (norm(v) + c1.r * c1.r - c2.r * c2.r) / (2 * abs(v));
+    double as = sqrt(c1.r * c1.r - ac * ac);
+    P u = v / abs(v);
+    P h = u * P(0, as);
+    u *= ac;
+    return L(c1.p + u + h, c1.p + u - h);
 }
 
 // 2: parallel
@@ -96,13 +128,17 @@ int relationLL(L l1, L l2) {
     return 0;
 }
 
+int relationCC(C c1, C c2) {
+    double d = abs(c1.p - c2.p);
+    if (sgn(d, c1.r + c2.r) == 1)       return 4; // distant
+    if (sgn(d, c1.r + c2.r) == 0)       return 3; // touch outside
+    if (sgn(d, abs(c1.r - c2.r)) == -1) return 0; // c1 in c2
+    if (sgn(d, abs(c1.r - c2.r)) == 0)  return 1; // c1 touches in c2
+    return 2; // two crosspoints
+}
 
 bool intersectLL(L l1, L l2) {
     return cross(l1.v, l2.v) != 0;
-}
-
-P crosspointLL(L l1, L l2) {
-    return l1.a + l1.v * cross(l2.v, l2.a - l1.a) / cross(l2.v, l1.v);
 }
 
 bool intersectSG(L l, G g) {
@@ -115,14 +151,31 @@ bool intersectSG(L l, G g) {
     return false;
 }
 
+// exclude endpoints
+bool intersectSC(L s, C c) {
+    return sgn(distanceSP(s, c.p), c.r) == -1;
+}
+
+bool intersectPL(P p, L l) {
+    return abs(ccw(l.a, l.b, p)) != 1;
+}
+
+bool intersectGC(G g, C c) {
+    int n = g.size();
+    rep(i, n) {
+        L s(here(g, i), next(g, i));
+        if (intersectSC(s, c)) return true;
+    }
+    return false;
+}
 
 double distanceLP(L l, P p) {
     return abs(cross(l.v, p - l.a)) / abs(l.v);
 }
 
 double distanceSP(L l, P p) {
-    if (dot(l.v, p - l.a) < 0) return abs(p - l.a);
-    if (dot(-l.v, p - l.b) < 0) return abs(p - l.b);
+    if (sgn(dot(l.v, p - l.a)) == -1) return abs(p - l.a);
+    if (sgn(dot(-l.v, p - l.b)) == -1) return abs(p - l.b);
     return distanceLP(l, p);
 }
 
@@ -141,13 +194,21 @@ double distanceCC(C c1, C c2) {
     return max(0., d - (c1.r + c2.r));
 }
 
-P projection(P x, P d) {
-    return dot(x, d) * d / abs(d) / abs(d);
+P projection(P p, P a, P b) {
+    p -= a; b -= a;
+    return dot(p, b) * b / abs(b) / abs(b) + a;
 }
 
-P reflection(P x, P d) {
-    P t = projection(x, d);
-    return 2. * t - x;
+P reflection(P p, P a, P b) {
+    P t = projection(p, a, b);
+    return 2. * t - p;
+}
+
+L PerpendicularBisector(P p, P q) {
+    P c = (p + q) / 2.;
+    P d = (q - p) / 2.;
+    P h = d * P(0, 1);
+    return L(c + h, c - h);
 }
 
 double deg2rad(double deg) {
@@ -163,6 +224,41 @@ P rotP(P p, P q, double theta) {
     return p;
 }
 
+G convex_cut(G g, L l) {
+    G h;
+    rep(i, (int)g.size()) {
+        P p = here(g, i), q = next(g, i);
+        if (ccw(p, q, l.a) == 0 && ccw(p, q, l.b) == 0) {
+            if (ccw(p, l.b, l.a) == 0) return g;    // p -- l.a -- l.b -- q
+            else return G{};                        // p -- l.b -- l.a -- q
+        }
+        if (ccw(l.a, l.b, p) != -1) h.emplace_back(p);
+        if (ccw(l.a, l.b, p) * ccw(l.a, l.b, q) < 0)
+            h.emplace_back(crosspointLL(L(p, q), l));
+    }
+    return h;
+}
+
+vector<G> Voronoi(G g, vector<P> p) {
+    vector<G> ret;
+    rep(i, p.size()) {
+        G h = g;
+        rep(j, p.size()) {
+            if (i == j) continue;
+            L l = PerpendicularBisector(p[i], p[j]);
+            if (ccw(l.a, l.b, p[i]) == -1) l.reverse();
+            h = convex_cut(h, l);
+        }
+        ret.emplace_back(h);
+    }
+    return ret;
+}
+
+bool cmp_x(const P& p, const P& q) {
+    if (sgn(p.real(), q.real()) != 0) return sgn(p.real(), q.real()) == -1;
+    return sgn(p.imag(), q.imag()) == -1;
+}
+
 G convex_hull(vector<P> ps) {
     int n = ps.size();
     sort(all(ps), cmp_x);
@@ -170,12 +266,12 @@ G convex_hull(vector<P> ps) {
     int k = 0;
     rep(i, n) {
         // 一直線上の3つ以上の頂点を残したい場合は「<=」を「<」に
-        while (k > 1 && cross(qs[k - 1] - qs[k - 2], ps[i] - qs[k - 1]) <= 0) k--;
+        while (k > 1 && sgn(cross(qs[k - 1] - qs[k - 2], ps[i] - qs[k - 1])) < 0) k--;
         qs[k++] = ps[i];
     }
     for (int i = n - 2, t = k; i >= 0; i--) {
         // 一直線上の3つ以上の頂点を残したい場合は「<=」を「<」に
-        while (k > t && cross(qs[k - 1] - qs[k - 2], ps[i] - qs[k - 1]) <= 0) k--;
+        while (k > t && sgn(cross(qs[k - 1] - qs[k - 2], ps[i] - qs[k - 1])) < 0) k--;
         qs[k++] = ps[i];
     }
     qs.resize(k - 1);
@@ -210,9 +306,10 @@ P centroidG(G g) {
     return P(x / n, y / n);
 }
 
+// signed!!!
 double areaG(G g) {
     int n = g.size();
-    double ret;
+    double ret = 0;
     rep(i, n) {
         ret += cross(here(g, i), next(g, i));
     }
@@ -269,6 +366,17 @@ C readC() {
     return C(x, y, r);
 }
 
+void printG(G g) {
+    rep(i, g.size()) {
+        cout << g[i].real() << " " << g[i].imag() << endl;
+    }
+    cout << endl;
+}
+
+void printPoint(P p) {
+    cout << fixed << setprecision(10) << p.real() << " " << p.imag() << endl;
+}
+
 bool EQ(double a, double b) {
     return abs(a - b) < EPS;
 }
@@ -293,16 +401,6 @@ bool EqG(G g, G h) {
     }
     return false;
 }
-
-
-
-void printG(G g) {
-    rep(i, g.size()) {
-        cout << g[i].real() << " " << g[i].imag() << endl;
-    }
-    cout << endl;
-}
-
 
 signed main() {
     std::ios::sync_with_stdio(false);
